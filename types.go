@@ -1,12 +1,9 @@
 package storm
 
-// TaskIds - an array of ids
-type TaskIds []int
-
 //TupleMessage - A tuple an it's processing metadata
 type TupleMessage struct {
 
-	//Id - for ack & fail only
+	//Id - To identifiy this tuple, for messaging guarantees
 	Id string `json:"id",omitempty`
 
 	//Stream - Id of the stream this tuple is emmited to. Blank==default stream
@@ -41,7 +38,7 @@ type Spouter interface {
 	Emit() *TupleMessage
 	Ack(id string)
 	Fail(id string)
-	AssociateTasks(id string, taskIds TaskIds)
+	AssociateTasks(id string, taskIds []int)
 }
 
 type SpoutProcess struct {

@@ -2,6 +2,7 @@ package storm
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -54,13 +55,31 @@ func (s *Spout) emit() bool {
 	s.storm.Output <- msg
 
 	if tuple.Task == nil {
-		bts := <-s.storm.Input
-		taskIds := make(TaskIds, 0)
-		err := json.Unmarshal(bts, &taskIds)
-		if err != nil {
-			panic(err)
+		waitFor := time.Second * 5
+		done := false
+		//this ensures that if for some reason we never get input that we are not stuck and can at least
+		//gracefully shutdown
+		for {
+			select {
+			case bts := <-s.storm.Input:
+				taskIds := make(TaskIds, 0)
+				err := json.Unmarshal(bts, &taskIds)
+				if err != nil {
+					panic(err)
+				}
+				s.spouter.AssociateTasks(tuple.Id, taskIds)
+				break
+			case <-s.storm.Done:
+				done = true
+				continue
+			case <-time.After(waitFor):
+				if done {
+					break
+				} else {
+					s.storm.Log(fmt.Sprintf("Warning: spout waiting for TaskIds for tupleId:'%s'", tuple.Id))
+				}
+			}
 		}
-		s.spouter.AssociateTasks(tuple.Id, taskIds)
 	}
 	return true
 }

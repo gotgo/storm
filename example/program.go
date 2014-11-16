@@ -7,15 +7,27 @@ func main() {
 }
 
 func runSpout() {
-	storm := storm.NewStormSession()
-	spout := storm.NewSpout(storm, &MySpout{})
+	s := storm.NewStormSession()
+	spout := storm.NewSpout(s, &MySpout{})
 	go spout.Run()
 
 	select {
-	case <-storm.Done:
+	case <-s.Done:
 	}
 
-	close(storm.Done)
+	close(s.Done)
+}
+
+func runBolt() {
+	s := storm.NewStormSession()
+	b := storm.NewBolt(s, &MyBolt{})
+	go b.Process()
+
+	select {
+	case <-s.Done:
+	}
+
+	close(s.Done)
 }
 
 type MySpout struct {
@@ -30,7 +42,7 @@ func (s *MySpout) Ack(id string) {
 func (s *MySpout) Fail(id string) {
 
 }
-func (s *MySpout) AssociateTasks(id string, taskIds storm.TaskIds) {
+func (s *MySpout) AssociateTasks(id string, taskIds []int) {
 
 }
 
@@ -39,18 +51,6 @@ type MyBolt struct {
 
 func (mb *MyBolt) Process(tuple *storm.TupleMessage) (error, *storm.TupleMessage) {
 	return nil, nil
-}
-
-func runBolt() {
-	s := storm.NewStormSession()
-	b := storm.NewBolt(s, &MyBolt{})
-	go b.Process()
-
-	select {
-	case <-s.Done:
-	}
-
-	close(s.Done)
 }
 
 func createTopology() {
