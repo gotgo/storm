@@ -53,22 +53,16 @@ func (s *Spout) emit() bool {
 	msg := &SpoutMessage{TupleMessage: *tuple, Command: "emit"}
 	s.storm.Output <- msg
 
-	bts := <-s.storm.Input
-	taskIds := make(TaskIds, 0)
-	err := json.Unmarshal(bts, &taskIds)
-	if err != nil {
-		panic(err)
+	if tuple.Task == nil {
+		bts := <-s.storm.Input
+		taskIds := make(TaskIds, 0)
+		err := json.Unmarshal(bts, &taskIds)
+		if err != nil {
+			panic(err)
+		}
+		s.spouter.AssociateTasks(tuple.Id, taskIds)
 	}
-	s.spouter.AssociateTasks(tuple.Id, taskIds)
 	return true
-}
-
-// emitDirect - to a specific task number
-func (s *Spout) emitDirect() bool {
-	//emit
-	panic("todo")
-	//no task ids
-	return false
 }
 
 func (s *Spout) sync() {
@@ -78,7 +72,7 @@ func (s *Spout) sync() {
 }
 
 func (s *Spout) next() {
-	if !s.emit() {
+	if s.emit() == false {
 		select {
 		case <-time.After(time.Millisecond * 100):
 		case <-s.storm.Done:
@@ -88,11 +82,9 @@ func (s *Spout) next() {
 }
 
 func (s *Spout) ack(id string) {
-	//record as complete
 	s.spouter.Ack(id)
 }
 
 func (s *Spout) fail(id string) {
-	//record as fail, to retry
 	s.spouter.Fail(id)
 }

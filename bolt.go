@@ -6,10 +6,10 @@ import (
 )
 
 // NewBold - Creates a new Bolt for transformations
-func NewBolt(s *Storm, t Transformer) *Bolt {
+func NewBolt(s *Storm, p TupleProcessor) *Bolt {
 	return &Bolt{
-		storm:       s,
-		transformer: t,
+		storm:     s,
+		processor: p,
 	}
 }
 
@@ -22,8 +22,8 @@ func NewBolt(s *Storm, t Transformer) *Bolt {
 // * Tupel (now changed in some way)
 // * Command - ack, fail, log, emit
 type Bolt struct {
-	storm       *Storm
-	transformer Transformer
+	storm     *Storm
+	processor TupleProcessor
 }
 
 // Process - Process all tuples that come into the bold
@@ -56,7 +56,7 @@ func (b *Bolt) receiveTaskIds(taskIds []int) {
 }
 
 func (b *Bolt) transform(bi *BoltInput) {
-	err, newTuple := b.transformer.Transform(&bi.TupleMessage)
+	err, newTuple := b.processor.Process(&bi.TupleMessage)
 
 	if err != nil {
 		b.storm.Log(fmt.Sprintf("Fail id:{0} error:{1}", bi.TupleMessage.Id, err.Error()))
@@ -65,6 +65,7 @@ func (b *Bolt) transform(bi *BoltInput) {
 		b.ack(bi.Id)
 	} else {
 		b.emit(newTuple)
+		b.ack(bi.Id)
 	}
 }
 

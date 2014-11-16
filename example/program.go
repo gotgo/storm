@@ -8,7 +8,7 @@ func main() {
 
 func runSpout() {
 	storm := storm.NewStormSession()
-	spout := storm.NewSpout(storm)
+	spout := storm.NewSpout(storm, &MySpout{})
 	go spout.Run()
 
 	select {
@@ -18,10 +18,26 @@ func runSpout() {
 	close(storm.Done)
 }
 
+type MySpout struct {
+}
+
+func (s *MySpout) Emit() *storm.TupleMessage {
+	return nil
+}
+func (s *MySpout) Ack(id string) {
+
+}
+func (s *MySpout) Fail(id string) {
+
+}
+func (s *MySpout) AssociateTasks(id string, taskIds storm.TaskIds) {
+
+}
+
 type MyBolt struct {
 }
 
-func (mb *MyBolt) Transform(tuple *storm.TupleMessage) (error, *storm.TupleMessage) {
+func (mb *MyBolt) Process(tuple *storm.TupleMessage) (error, *storm.TupleMessage) {
 	return nil, nil
 }
 
@@ -41,11 +57,26 @@ func createTopology() {
 	t := storm.NewTopology("word counter")
 	parallelism := int32(2)
 
-	randomScentence := t.AddSpout("randomScentence", &storm.SpoutProcess{"/opt/myapp/app"}, parallelism)
+	randomScentence := t.AddSpout("randomScentence", &storm.ComponentDef{
+		ShellCommand: "/opt/myapp/app",
+		OutputFields: []string{},
+		Direct:       false,
+		Parallelism:  parallelism,
+	})
 
-	splitter := t.AddBolt("wordSplitter", &storm.BoltProcess{"/opt/mybolt/app"}, parallelism)
+	splitter := t.AddBolt("wordSplitter", &storm.ComponentDef{
+		ShellCommand: "/opt/mybolt/app",
+		OutputFields: []string{},
+		Direct:       false,
+		Parallelism:  parallelism,
+	})
 	splitter.Input(randomScentence, storm.DistributeByShuffle, nil)
 
-	wordCounter := t.AddBolt("wordCounter", &storm.BoltProcess{"/opt/mybolt/app"}, parallelism)
+	wordCounter := t.AddBolt("wordCounter", &storm.ComponentDef{
+		ShellCommand: "/opt/mybolt/app",
+		OutputFields: []string{},
+		Direct:       false,
+		Parallelism:  parallelism,
+	})
 	wordCounter.Input(splitter, storm.DistributeByShuffle, nil)
 }

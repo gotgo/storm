@@ -13,7 +13,7 @@ type TupleMessage struct {
 	Stream string `json:"stream",omitempty`
 
 	//Task - For direct emit
-	Task int `json:"task",omitempty`
+	Task *int32 `json:"task",omitempty`
 
 	//Tuple - A 'row' of data
 	Tuple []interface{} `json:"tuple"`
@@ -33,8 +33,8 @@ type SpoutMessage struct {
 }
 
 // Transformer - Enables an implementation of a Bolt Transform
-type Transformer interface {
-	Transform(tuple *TupleMessage) (error, *TupleMessage)
+type TupleProcessor interface {
+	Process(tuple *TupleMessage) (error, *TupleMessage)
 }
 
 type Spouter interface {
