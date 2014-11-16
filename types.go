@@ -36,3 +36,18 @@ type SpoutMessage struct {
 type Transformer interface {
 	Transform(tuple *TupleMessage) (error, *TupleMessage)
 }
+
+type Spouter interface {
+	Emit() *TupleMessage
+	Ack(id string)
+	Fail(id string)
+	AssociateTasks(id string, taskIds TaskIds)
+}
+
+type SpoutProcess struct {
+	ExecutionCommand string
+}
+
+type BoltProcess struct {
+	ExecutionCommand string
+}

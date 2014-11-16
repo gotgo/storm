@@ -6,16 +6,18 @@ import (
 )
 
 // NewSpout - Creates a new spout for the given storm session.
-func NewSpout(s *Storm) *Spout {
+func NewSpout(s *Storm, spout Spouter) *Spout {
 	return &Spout{
-		storm: s,
+		storm:   s,
+		spouter: spout,
 	}
 }
 
 // Spout - Emits data
 // Input: (Message)
 type Spout struct {
-	storm *Storm
+	storm   *Storm
+	spouter Spouter
 }
 
 // Run - Runs the spout
@@ -43,19 +45,28 @@ func (s *Spout) Run() {
 }
 
 func (s *Spout) emit() bool {
-	//emit
+	tuple := s.spouter.Emit()
+	if tuple == nil {
+		return false
+	}
 
-	//TODO: then get TaskIds as json array
+	msg := &SpoutMessage{TupleMessage: *tuple, Command: "emit"}
+	s.storm.Output <- msg
+
 	bts := <-s.storm.Input
 	taskIds := make(TaskIds, 0)
-	json.Unmarshal(bts, &taskIds)
-	return false
+	err := json.Unmarshal(bts, &taskIds)
+	if err != nil {
+		panic(err)
+	}
+	s.spouter.AssociateTasks(tuple.Id, taskIds)
+	return true
 }
 
 // emitDirect - to a specific task number
 func (s *Spout) emitDirect() bool {
 	//emit
-
+	panic("todo")
 	//no task ids
 	return false
 }
@@ -78,8 +89,10 @@ func (s *Spout) next() {
 
 func (s *Spout) ack(id string) {
 	//record as complete
+	s.spouter.Ack(id)
 }
 
 func (s *Spout) fail(id string) {
 	//record as fail, to retry
+	s.spouter.Fail(id)
 }

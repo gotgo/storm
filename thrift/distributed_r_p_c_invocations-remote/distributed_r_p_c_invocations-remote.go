@@ -14,7 +14,7 @@ import (
 	"strings"
 
 	"git.apache.org/thrift.git/lib/go/thrift"
-	"github.com/gotgo/storm/thrift/storm"
+	storm "github.com/gotgo/storm/thrift/topology"
 )
 
 func Usage() {
