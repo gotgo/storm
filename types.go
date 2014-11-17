@@ -41,10 +41,20 @@ type Spouter interface {
 	AssociateTasks(id string, taskIds []int)
 }
 
-type SpoutProcess struct {
-	ExecutionCommand string
+type ComponentDef struct {
+	ShellCommand string //to execute
+	OutputFields []string
+	Direct       bool
+	Parallelism  int32
 }
 
-type BoltProcess struct {
-	ExecutionCommand string
-}
+type DistributeHow string
+
+const (
+	DistributeByShuffle      = "shuffle"
+	DistributeByField        = "field"
+	DistributeToAll          = "all"
+	DistributeDirect         = "direct"
+	DistributeAny            = "none" //none means no choice, don't care
+	DistributeLocalOrShuffle = "localorshuffle"
+)

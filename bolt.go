@@ -32,7 +32,7 @@ func (b *Bolt) Process() {
 		select {
 		case bts := <-b.storm.Input:
 			if bts[0] == '[' {
-				var ids TaskIds
+				var ids []int
 				if err := json.Unmarshal(bts, &ids); err != nil {
 					panic(err)
 				}

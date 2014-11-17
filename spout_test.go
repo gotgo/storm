@@ -11,22 +11,28 @@ import (
 
 func NewTestSpout() *TestSpout {
 	return &TestSpout{
-		Data:        make(chan *TupleMessage),
+		Data:        make([]*TupleMessage, 0),
 		Acks:        make(map[string]int),
 		Fails:       make(map[string]int),
-		LastTaskIds: make(map[string]TaskIds),
+		LastTaskIds: make(map[string][]int),
 	}
 }
 
 type TestSpout struct {
-	Data        chan *TupleMessage
+	Data        []*TupleMessage
 	Acks        map[string]int
 	Fails       map[string]int
-	LastTaskIds map[string]TaskIds
+	LastTaskIds map[string][]int
 }
 
 func (s *TestSpout) Emit() *TupleMessage {
-	return <-s.Data
+	if len(s.Data) > 0 {
+		n := s.Data[0]
+		s.Data = s.Data[1:]
+		return n
+	} else {
+		return nil
+	}
 }
 func (s *TestSpout) Ack(id string) {
 	s.Acks[id] += 1
@@ -34,7 +40,7 @@ func (s *TestSpout) Ack(id string) {
 func (s *TestSpout) Fail(id string) {
 	s.Fails[id] += 1
 }
-func (s *TestSpout) AssociateTasks(id string, taskIds []byte) {
+func (s *TestSpout) AssociateTasks(id string, taskIds []int) {
 	s.LastTaskIds[id] = taskIds
 }
 
@@ -53,8 +59,14 @@ var _ = Describe("Spout", func() {
 	var channel *Storm
 
 	BeforeEach(func() {
-		testSpout = &TestSpout{}
+		testSpout = NewTestSpout()
+		channel = &Storm{
+			Input:  make(chan []byte),
+			Output: make(chan interface{}),
+			Done:   make(chan struct{}),
+		}
 		spout = NewSpout(channel, testSpout)
+
 		go spout.Run()
 	})
 
@@ -68,14 +80,10 @@ var _ = Describe("Spout", func() {
 			Command:      "ack",
 		}
 		channel.Input <- marshal(m)
+		Expect(testSpout.Acks[m.Id]).To(Equal(1))
 
 		o := <-channel.Output
 		msgOut := o.(*SpoutMessage)
-		Expect(msgOut.Command).To(Equal("ack"))
-		Expect(testSpout.Acks[m.Id]).To(Equal(1))
-
-		o = <-channel.Output
-		msgOut = o.(*SpoutMessage)
 		Expect(msgOut.Command).To(Equal("sync"))
 	})
 
@@ -88,31 +96,26 @@ var _ = Describe("Spout", func() {
 
 		o := <-channel.Output
 		msgOut := o.(*SpoutMessage)
-		Expect(msgOut.Command).To(Equal("fail"))
-		Expect(testSpout.Fails[m.Id]).To(Equal(1))
-
-		o = <-channel.Output
-		msgOut = o.(*SpoutMessage)
 		Expect(msgOut.Command).To(Equal("sync"))
+		Expect(testSpout.Fails[m.Id]).To(Equal(1))
 	})
 
-	It("should emit", func() {
+	It("should emit data", func() {
 		d := make([]interface{}, 2)
 		d[0] = "hot"
 		d[1] = 7
-		testSpout.Data <- &TupleMessage{
+
+		t := &TupleMessage{
 			Id:    "12345",
 			Tuple: d,
 		}
+		testSpout.Data = append(testSpout.Data, t)
 
-		m := &SpoutMessage{
-			TupleMessage: TupleMessage{Id: "mike"},
-			Command:      "next",
-		}
-		channel.Input <- marshal(m)
+		channel.Input <- marshal(&SpoutMessage{Command: "next"})
 
 		o := <-channel.Output
 		msgOut := o.(*SpoutMessage)
+
 		Expect(msgOut.Command).To(Equal("emit"))
 		Expect(msgOut.Tuple[0]).To(Equal(d[0]))
 		Expect(msgOut.Tuple[1]).To(Equal(d[1]))
@@ -120,11 +123,18 @@ var _ = Describe("Spout", func() {
 		taskIds := []int{2}
 		channel.Input <- marshal(taskIds)
 
-		Expect(testSpout.LastTaskIds[m.Id][0]).To(Equal(taskIds[0]))
-
 		o = <-channel.Output
 		msgOut = o.(*SpoutMessage)
 		Expect(msgOut.Command).To(Equal("sync"))
+
+		//needs to go after the channel on output otherwise it's a race condition
+		ids := testSpout.LastTaskIds[t.Id]
+		Expect(ids).ToNot(BeNil())
+		Expect(ids[0]).To(Equal(taskIds[0]))
+	})
+
+	It("should emit safely with no data", func() {
+
 	})
 
 })

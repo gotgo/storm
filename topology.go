@@ -31,13 +31,6 @@ func (n emiterName) Name() string {
 	return n.name
 }
 
-type ComponentDef struct {
-	ShellCommand string //to execute
-	OutputFields []string
-	Direct       bool
-	Parallelism  int32
-}
-
 func (t *Topology) AddSpout(name string, spout *ComponentDef) EmiterName {
 	if spout.Parallelism <= 0 {
 		spout.Parallelism = 1
@@ -92,60 +85,4 @@ func (t *Topology) AddBolt(name string, bolt *ComponentDef) *BoltConfiguration {
 		bolt: b,
 		name: name,
 	}
-}
-
-type DistributeHow string
-
-const (
-	DistributeByShuffle      = "shuffle"
-	DistributeByField        = "field"
-	DistributeToAll          = "all"
-	DistributeDirect         = "direct"
-	DistributeAny            = "none" //none means no choice, don't care
-	DistributeLocalOrShuffle = "localorshuffle"
-)
-
-type BoltConfiguration struct {
-	bolt *topology.Bolt
-	name string
-}
-
-//Emiter interface implementation
-func (bc *BoltConfiguration) Name() string {
-	return bc.name
-}
-
-func (bc *BoltConfiguration) Input(source EmiterName, distributeHow DistributeHow, fields []string) {
-	g := &topology.Grouping{
-		Fields:         nil,
-		Shuffle:        nil,
-		All:            nil,
-		None:           nil,
-		Direct:         nil,
-		LocalOrShuffle: nil,
-	}
-
-	yes := &topology.NullStruct{}
-
-	switch distributeHow {
-	case DistributeByShuffle:
-		g.Shuffle = yes
-	case DistributeByField:
-		g.Fields = fields
-	case DistributeToAll:
-		g.All = yes
-	case DistributeDirect:
-		g.Direct = yes
-	case DistributeAny:
-		g.None = yes
-	case DistributeLocalOrShuffle:
-		g.LocalOrShuffle = yes
-	}
-
-	streamId := &topology.GlobalStreamId{
-		ComponentId: source.Name(), //the bolt or spout name
-		StreamId:    "default",
-	}
-
-	bc.bolt.Common.Inputs[streamId] = g
 }
