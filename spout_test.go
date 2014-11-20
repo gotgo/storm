@@ -60,18 +60,14 @@ var _ = Describe("Spout", func() {
 
 	BeforeEach(func() {
 		testSpout = NewTestSpout()
-		channel = &Storm{
-			Input:  make(chan []byte),
-			Output: make(chan interface{}),
-			Done:   make(chan struct{}),
-		}
+		channel = NewStorm()
 		spout = NewSpout(channel, testSpout)
 
 		go spout.Run()
 	})
 
 	AfterEach(func() {
-		close(channel.Done)
+		channel.End()
 	})
 
 	It("should ack", func() {

@@ -55,7 +55,7 @@ func (s *Spout) Run() {
 				}
 				s.sync()
 			}
-		case <-s.storm.Done:
+		case <-s.storm.done:
 			return
 		}
 	}
@@ -81,19 +81,26 @@ func (s *Spout) emit() bool {
 					mustUnmarshal(bts, &taskIds)
 					s.spouter.AssociateTasks(tuple.Id, taskIds)
 					return true
-				case <-s.storm.Done:
+				case <-s.storm.done:
 					done = true
 					continue
 				case <-time.After(waitFor):
 					if done {
 						break
 					} else {
-						s.storm.Log(fmt.Sprintf("Warning: spout waiting for TaskIds for tupleId:'%s'", tuple.Id))
+						s.log(fmt.Sprintf("Warning: spout waiting for TaskIds for tupleId:'%s'", tuple.Id))
 					}
 				}
 			}
 		}
 		return true
+	}
+}
+
+func (s *Spout) log(message string) {
+	s.storm.Output <- &SpoutMessage{
+		Command: "log",
+		Message: message,
 	}
 }
 
@@ -108,7 +115,7 @@ func (s *Spout) next() {
 		select {
 		case <-time.After(time.Millisecond * 100):
 			return
-		case <-s.storm.Done:
+		case <-s.storm.done:
 			return
 		}
 	}

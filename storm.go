@@ -14,20 +14,26 @@ import (
 type Storm struct {
 	Input  chan []byte
 	Output chan interface{}
-	Done   chan struct{}
+	done   chan struct{}
 }
 
 // NewStormSession - Connects with Storm and starts the processor for running a Bolt or Spout
-func NewStormSession() *Storm {
-	s := &Storm{
+func NewStorm() *Storm {
+	return &Storm{
 		Input:  make(chan []byte),
 		Output: make(chan interface{}),
-		Done:   make(chan struct{}),
+		done:   make(chan struct{}),
 	}
+}
+
+func (s *Storm) Run() {
 	go s.read()
 	go s.write()
 	s.connect()
-	return s
+}
+
+func (s *Storm) End() {
+	close(s.done)
 }
 
 // Log - Send a log message to Storm
@@ -78,7 +84,7 @@ func (s *Storm) read() {
 		}
 
 		select {
-		case <-s.Done:
+		case <-s.done:
 			return
 		default:
 		}
@@ -101,7 +107,7 @@ func (s *Storm) write() {
 			}
 
 			w.Flush()
-		case <-s.Done:
+		case <-s.done:
 			return
 		}
 	}

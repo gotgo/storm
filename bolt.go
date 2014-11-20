@@ -6,7 +6,7 @@ import (
 )
 
 // NewBold - Creates a new Bolt for transformations
-func NewBolt(s *Storm, p TupleProcessor) *Bolt {
+func NewBolt(s *Storm, p BoltProcessor) *Bolt {
 	return &Bolt{
 		storm:     s,
 		processor: p,
@@ -23,11 +23,11 @@ func NewBolt(s *Storm, p TupleProcessor) *Bolt {
 // * Command - ack, fail, log, emit
 type Bolt struct {
 	storm     *Storm
-	processor TupleProcessor
+	processor BoltProcessor
 }
 
 // Process - Process all tuples that come into the bold
-func (b *Bolt) Process() {
+func (b *Bolt) Run() {
 	for {
 		select {
 		case bts := <-b.storm.Input:
@@ -36,7 +36,7 @@ func (b *Bolt) Process() {
 				if err := json.Unmarshal(bts, &ids); err != nil {
 					panic(err)
 				}
-				b.receiveTaskIds(ids)
+				b.trackIndirectEmit(ids)
 			} else {
 				var input BoltInput
 				if err := json.Unmarshal(bts, &input); err != nil {
@@ -45,21 +45,21 @@ func (b *Bolt) Process() {
 				b.transform(&input)
 			}
 			break //TaskIds or Message
-		case <-b.storm.Done:
+		case <-b.storm.done:
 			return
 		}
 	}
 }
 
-func (b *Bolt) receiveTaskIds(taskIds []int) {
-	//not sure what to do with these
+func (b *Bolt) trackIndirectEmit(taskIds []int) {
+	b.processor.TrackIndirectEmit(taskIds)
 }
 
 func (b *Bolt) transform(bi *BoltInput) {
-	err, newTuple := b.processor.Process(&bi.TupleMessage)
+	newTuple, err := b.processor.Process(&bi.TupleMessage)
 
 	if err != nil {
-		b.storm.Log(fmt.Sprintf("Fail id:{0} error:{1}", bi.TupleMessage.Id, err.Error()))
+		b.log(fmt.Sprintf("Fail id:{0} error:{1}", bi.TupleMessage.Id, err.Error()))
 		b.fail(bi.Id)
 	} else if newTuple == nil {
 		b.ack(bi.Id)
@@ -69,29 +69,32 @@ func (b *Bolt) transform(bi *BoltInput) {
 	}
 }
 
+func (s *Bolt) log(message string) {
+	s.storm.Output <- &BoltOutput{
+		Command: "log",
+		Message: message,
+	}
+}
+
 func (b *Bolt) emit(tm *TupleMessage) {
-	output := &BoltOutput{
+	b.storm.Output <- &BoltOutput{
 		TupleMessage: *tm,
 		Command:      "emit",
 	}
-	b.storm.Output <- output
 }
 
 func (b *Bolt) fail(id string) {
-	output := &BoltOutput{
+	b.storm.Output <- &BoltOutput{
 		Command:      "fail",
 		TupleMessage: TupleMessage{Id: id},
 	}
-
-	b.storm.Output <- output
 }
 
 func (b *Bolt) ack(id string) {
-	output := &BoltOutput{
+	b.storm.Output <- &BoltOutput{
 		Command:      "ack",
 		TupleMessage: TupleMessage{Id: id},
 	}
-	b.storm.Output <- output
 }
 
 //BoltInput - Inbound Tuple

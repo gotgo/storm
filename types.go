@@ -30,8 +30,9 @@ type SpoutMessage struct {
 }
 
 // Transformer - Enables an implementation of a Bolt Transform
-type TupleProcessor interface {
+type BoltProcessor interface {
 	Process(tuple *TupleMessage) (*TupleMessage, error)
+	TrackIndirectEmit(taskIds []int)
 }
 
 type Spouter interface {
