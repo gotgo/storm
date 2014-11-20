@@ -134,6 +134,7 @@ var _ = Describe("Spout", func() {
 	})
 
 	It("should emit safely with no data", func() {
+		channel.Input <- marshal(&SpoutMessage{Command: "next"})
 
 	})
 
