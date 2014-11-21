@@ -7,27 +7,22 @@ func main() {
 }
 
 func runSpout() {
-	s := storm.NewStormSession()
+	s := storm.NewStorm()
+	s.Run()
 	spout := storm.NewSpout(s, &MySpout{})
 	go spout.Run()
 
-	select {
-	case <-s.Done:
-	}
-
-	close(s.Done)
+	//TODO: block on os signal
+	s.End()
 }
 
 func runBolt() {
-	s := storm.NewStormSession()
+	s := storm.NewStorm()
+	s.Run()
 	b := storm.NewBolt(s, &MyBolt{})
-	go b.Process()
-
-	select {
-	case <-s.Done:
-	}
-
-	close(s.Done)
+	go b.Run()
+	//TODO: block on os signal
+	s.End()
 }
 
 type MySpout struct {
@@ -49,9 +44,11 @@ func (s *MySpout) AssociateTasks(id string, taskIds []int) {
 type MyBolt struct {
 }
 
-func (mb *MyBolt) Process(tuple *storm.TupleMessage) (error, *storm.TupleMessage) {
+func (b *MyBolt) Process(tuple *storm.TupleMessage) (*storm.TupleMessage, error) {
 	return nil, nil
 }
+
+func (b *MyBolt) TrackIndirectEmit(taskIds []int) {}
 
 func createTopology() {
 	t := storm.NewTopology("word counter")
