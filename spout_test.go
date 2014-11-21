@@ -62,7 +62,6 @@ var _ = Describe("Spout", func() {
 		testSpout = NewTestSpout()
 		channel = NewStorm()
 		spout = NewSpout(channel, testSpout)
-
 		go spout.Run()
 	})
 

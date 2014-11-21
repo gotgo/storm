@@ -5,9 +5,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"math/rand"
 	"os"
 	"path"
 	"strconv"
+	"time"
+
+	"github.com/amattn/deeperror"
 )
 
 // Storm - The storm Processor for running a Spout or a Bolt
@@ -15,6 +20,8 @@ type Storm struct {
 	Input  chan []byte
 	Output chan interface{}
 	done   chan struct{}
+	ExtIn  io.Reader
+	ExtOut io.Writer
 }
 
 // NewStormSession - Connects with Storm and starts the processor for running a Bolt or Spout
@@ -23,6 +30,8 @@ func NewStorm() *Storm {
 		Input:  make(chan []byte),
 		Output: make(chan interface{}),
 		done:   make(chan struct{}),
+		ExtIn:  os.Stdin,
+		ExtOut: os.Stdout,
 	}
 }
 
@@ -36,18 +45,10 @@ func (s *Storm) End() {
 	close(s.done)
 }
 
-// Log - Send a log message to Storm
-func (s *Storm) Log(message string) {
-	s.Output <- &SpoutMessage{
-		Command: "log",
-		Message: message,
-	}
-}
-
 func (s *Storm) connect() {
-	setup := new(setupInfo)
+	setup := new(ConnectInfo)
 	if err := json.Unmarshal(<-s.Input, &setup); err != nil {
-		panic(err)
+		panic(deeperror.New(rand.Int63(), "connect unmarshal fail", err))
 	}
 	pid := strconv.Itoa(os.Getpid())
 	file, err := os.Create(path.Join(setup.PidDir, pid))
@@ -55,25 +56,15 @@ func (s *Storm) connect() {
 		panic(err)
 	}
 	file.Close()
-	s.Output <- &processId{pid}
-}
-
-type processId struct {
-	Pid string `json:"pid"`
-}
-
-type setupInfo struct {
-	Conf    *json.RawMessage `json:"conf"`
-	Context *json.RawMessage `json:"context"`
-	PidDir  string           `json:"pidDir"`
+	s.Output <- &ProcessId{pid}
 }
 
 func (s *Storm) read() {
-	r := bufio.NewReader(os.Stdin)
 	bs := bytes.NewBufferString("")
+	r := bufio.NewReader(s.ExtIn)
 	for {
-		if line, err := r.ReadString('\n'); err != nil {
-			panic(err)
+		if line, err := r.ReadString('\n'); err == io.EOF {
+			time.Sleep(time.Millisecond * 300)
 		} else {
 			if line == "end" {
 				s.Input <- bs.Bytes()
@@ -82,7 +73,6 @@ func (s *Storm) read() {
 				bs.WriteString(line)
 			}
 		}
-
 		select {
 		case <-s.done:
 			return
@@ -92,7 +82,7 @@ func (s *Storm) read() {
 }
 
 func (s *Storm) write() {
-	w := bufio.NewWriter(os.Stdout)
+	w := bufio.NewWriter(s.ExtOut)
 	for {
 		select {
 		case obj := <-s.Output:

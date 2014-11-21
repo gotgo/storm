@@ -1,5 +1,7 @@
 package storm
 
+import "encoding/json"
+
 //TupleMessage - A tuple an it's processing metadata
 type TupleMessage struct {
 
@@ -47,6 +49,16 @@ type ComponentDef struct {
 	OutputFields []string
 	Direct       bool
 	Parallelism  int32
+}
+
+type ConnectInfo struct {
+	Conf    *json.RawMessage `json:"conf"`
+	Context *json.RawMessage `json:"context"`
+	PidDir  string           `json:"pidDir"`
+}
+
+type ProcessId struct {
+	Pid string `json:"pid"`
 }
 
 type DistributeHow string

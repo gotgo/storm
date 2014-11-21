@@ -34,12 +34,12 @@ var _ = Describe("Bolt", func() {
 
 		o := <-channel.Output
 		outMsg := o.(*BoltOutput)
-		Expect(outMsg.Command).To(Equal("log"))
+		ExpectWithOffset(1, outMsg.Command).To(Equal("log"))
 
 		o = <-channel.Output
 		outMsg = o.(*BoltOutput)
-		Expect(outMsg.Command).To(Equal("fail"))
-		Expect(outMsg.Id).To(Equal(inMsg.Id))
+		ExpectWithOffset(1, outMsg.Command).To(Equal("fail"))
+		ExpectWithOffset(1, outMsg.Id).To(Equal(inMsg.Id))
 	}
 
 	It("should fail on error", func() {
